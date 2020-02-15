@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Nirespire/twitchbot/util"
+	"github.com/Nirespire/twitchbot/web"
 )
 
 var msgRegex *regexp.Regexp = regexp.MustCompile(`^:(\w+)!\w+@\w+\.tmi\.twitch\.tv (PRIVMSG) #\w+(?: :(.*))?$`)
@@ -27,6 +28,7 @@ type twitchBot interface {
 	readCredentials() error
 	say(msg string) error
 	Start()
+	startWebServer() error
 }
 
 type oAuthCred struct {
@@ -45,6 +47,7 @@ type BasicBot struct {
 	PrivatePath string
 	Server      string
 	startTime   time.Time
+	ServerPort  string
 }
 
 func (bb *BasicBot) connect() {
@@ -97,7 +100,10 @@ func (bb *BasicBot) say(msg string) error {
 	if msg == "" {
 		return errors.New("BasicBot.say: msg was empty")
 	}
-	_, err := bb.conn.Write([]byte(fmt.Sprintf("PRIVMSG #%s %s\r\n", bb.Channel, msg)))
+
+	fmt.Printf("DEBUG PRIVMSG #%s %s\r\n", bb.Channel, msg)
+
+	_, err := bb.conn.Write([]byte(fmt.Sprintf("PRIVMSG #%s :%s\r\n", bb.Channel, msg)))
 	if err != nil {
 		return err
 	}
@@ -136,6 +142,8 @@ func (bb *BasicBot) handleChat() error {
 
 					cmdMatches := cmdRegex.FindStringSubmatch(msg)
 
+					fmt.Printf("[%s] %s sent a command %s\n", util.TimeStamp(), userName, cmdMatches)
+
 					if cmdMatches != nil {
 						cmd := cmdMatches[1]
 
@@ -143,6 +151,9 @@ func (bb *BasicBot) handleChat() error {
 						case "hello":
 							fmt.Printf("[%s] %s said hello!", util.TimeStamp(), userName)
 							bb.say("Hello!")
+						case "project":
+							fmt.Printf("[%s] %s sent the project command!\n", util.TimeStamp(), userName)
+							bb.say("Currently working on a twitch chatbot using GOLANG.")
 						}
 					}
 				}
@@ -150,6 +161,10 @@ func (bb *BasicBot) handleChat() error {
 		}
 		time.Sleep(bb.MsgRate)
 	}
+}
+
+func (bb *BasicBot) startWebServer() {
+	web.StartWebServer(bb.ServerPort)
 }
 
 // Start initializes and runs the twitchbot with the provided configuration
@@ -162,6 +177,7 @@ func (bb *BasicBot) Start() {
 	}
 
 	for {
+		bb.startWebServer()
 		bb.connect()
 		bb.joinChannel()
 		err = bb.handleChat()

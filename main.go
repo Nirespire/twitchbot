@@ -13,6 +13,7 @@ func main() {
 		Port:        "6667",
 		PrivatePath: "oauth.json",
 		Server:      "irc.chat.twitch.tv",
+		ServerPort:  ":8080",
 	}
 	myBot.Start()
 }
