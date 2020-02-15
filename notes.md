@@ -6,6 +6,15 @@
 - Send a welcome message with channel info on an interval
 - !project command -> give a description of what I'm currently working on
 
+- Web interface for stats + configuration
+    - Set project info
+    - Set greeting
+    - Stream logs
+
+- Deploy somewhere
+    - Digitalocean?
+    - Github action
+
 ## Implementation
 - Written using go 1.13 with go modules
 - Start with basic Twitch IRC implementation, move to some twitchbot library
