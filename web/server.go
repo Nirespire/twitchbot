@@ -2,10 +2,9 @@ package web
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
-
-	"github.com/Nirespire/twitchbot/util"
 )
 
 func sayHello(w http.ResponseWriter, r *http.Request) {
@@ -31,5 +30,5 @@ func StartWebServer(port string) {
 			panic("ListenAndServe: " + err.Error())
 		}
 	}()
-	fmt.Printf("[%s] Webserver running on PORT %s\n", util.TimeStamp(), port)
+	log.Printf("Webserver running on PORT %s\n", port)
 }

@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/textproto"
 	"regexp"
 	"strings"
 	"time"
 
-	"github.com/Nirespire/twitchbot/util"
 	"github.com/Nirespire/twitchbot/web"
 )
 
@@ -52,22 +52,22 @@ type BasicBot struct {
 
 func (bb *BasicBot) connect() {
 	var err error
-	fmt.Printf("[%s] connecting to %s...\n", util.TimeStamp(), bb.Server)
+	log.Printf("connecting to %s...\n", bb.Server)
 
 	bb.conn, err = net.Dial("tcp", bb.Server+":"+bb.Port)
 	if err != nil {
-		fmt.Printf("[%s] Cannont cont to %s, retrying.\n", util.TimeStamp(), bb.Server)
+		log.Printf("Cannont cont to %s, retrying.\n", bb.Server)
 		bb.connect()
 	}
 
-	fmt.Printf("[%s] connected to %s", util.TimeStamp(), bb.Server)
+	log.Printf("connected to %s", bb.Server)
 	bb.startTime = time.Now()
 }
 
 func (bb *BasicBot) disconnect() {
 	bb.conn.Close()
 	upTime := time.Now().Sub(bb.startTime).Seconds()
-	fmt.Printf("[%s] Closed connected from %s | Live for: %fs\n", util.TimeStamp(), bb.Server, upTime)
+	log.Printf("Closed connected from %s | Live for: %fs\n", bb.Server, upTime)
 }
 
 func (bb *BasicBot) readCredentials() error {
@@ -88,12 +88,12 @@ func (bb *BasicBot) readCredentials() error {
 }
 
 func (bb *BasicBot) joinChannel() {
-	fmt.Printf("[%s] Joining #%s...\n", util.TimeStamp(), bb.Channel)
+	log.Printf("Joining #%s...\n", bb.Channel)
 	bb.conn.Write([]byte("PASS " + bb.Credentials.Password + "\r\n"))
 	bb.conn.Write([]byte("NICK " + bb.Name + "\r\n"))
 	bb.conn.Write([]byte("JOIN #" + bb.Channel + "\r\n"))
 
-	fmt.Printf("[%s] Joined #%s as @%s!\n", util.TimeStamp(), bb.Channel, bb.Name)
+	log.Printf("Joined #%s as @%s!\n", bb.Channel, bb.Name)
 }
 
 func (bb *BasicBot) say(msg string) error {
@@ -101,7 +101,7 @@ func (bb *BasicBot) say(msg string) error {
 		return errors.New("BasicBot.say: msg was empty")
 	}
 
-	fmt.Printf("DEBUG PRIVMSG #%s %s\r\n", bb.Channel, msg)
+	log.Printf("DEBUG PRIVMSG #%s %s\r\n", bb.Channel, msg)
 
 	_, err := bb.conn.Write([]byte(fmt.Sprintf("PRIVMSG #%s :%s\r\n", bb.Channel, msg)))
 	if err != nil {
@@ -111,7 +111,7 @@ func (bb *BasicBot) say(msg string) error {
 }
 
 func (bb *BasicBot) handleChat() error {
-	fmt.Printf("[%s] Watching #%s...\n", util.TimeStamp(), bb.Channel)
+	log.Printf("Watching #%s...\n", bb.Channel)
 
 	tp := textproto.NewReader(bufio.NewReader(bb.conn))
 
@@ -123,7 +123,7 @@ func (bb *BasicBot) handleChat() error {
 			return errors.New("bb.Bot.handleChat: Failed to read line from channel. disconnected")
 		}
 
-		fmt.Printf("[%s] %s\n", util.TimeStamp(), line)
+		log.Printf("%s\n", line)
 
 		if "PING :tmi.twitch.tv" == line {
 			bb.conn.Write([]byte("PONG :tmi.twitch.tv\r\n"))
@@ -138,21 +138,21 @@ func (bb *BasicBot) handleChat() error {
 				switch msgType {
 				case "PRIVMSG":
 					msg := matches[3]
-					fmt.Printf("[%s] %s: %s\n", util.TimeStamp(), userName, msg)
+					log.Printf("%s: %s\n", userName, msg)
 
 					cmdMatches := cmdRegex.FindStringSubmatch(msg)
 
-					fmt.Printf("[%s] %s sent a command %s\n", util.TimeStamp(), userName, cmdMatches)
+					log.Printf("%s sent a command %s\n", userName, cmdMatches)
 
 					if cmdMatches != nil {
 						cmd := cmdMatches[1]
 
 						switch cmd {
 						case "hello":
-							fmt.Printf("[%s] %s said hello!", util.TimeStamp(), userName)
+							log.Printf("%s said hello!", userName)
 							bb.say("Hello!")
 						case "project":
-							fmt.Printf("[%s] %s sent the project command!\n", util.TimeStamp(), userName)
+							log.Printf("%s sent the project command!\n", userName)
 							bb.say("Currently working on a twitch chatbot using GOLANG.")
 						}
 					}
@@ -171,8 +171,8 @@ func (bb *BasicBot) startWebServer() {
 func (bb *BasicBot) Start() {
 	err := bb.readCredentials()
 	if err != nil {
-		fmt.Println(err)
-		fmt.Println("Aborting...")
+		log.Println(err)
+		log.Println("Aborting...")
 		return
 	}
 
@@ -183,8 +183,8 @@ func (bb *BasicBot) Start() {
 		err = bb.handleChat()
 		if err != nil {
 			time.Sleep(1000 * time.Millisecond)
-			fmt.Println(err)
-			fmt.Println("Starting bot again...")
+			log.Println(err)
+			log.Println("Starting bot again...")
 		} else {
 			return
 		}
