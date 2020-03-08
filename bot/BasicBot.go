@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Nirespire/twitchbot/web"
+	"github.com/Nirespire/twitchbot/types"
 )
 
 var msgRegex *regexp.Regexp = regexp.MustCompile(`^:(\w+)!\w+@\w+\.tmi\.twitch\.tv (PRIVMSG) #\w+(?: :(.*))?$`)
@@ -31,16 +32,12 @@ type twitchBot interface {
 	startWebServer() error
 }
 
-type oAuthCred struct {
-	Password string `json:"password,omitempty"`
-}
-
 // BasicBot defines the basic twitchbot details to connect and join a channel
 // as well as behavior configuration
 type BasicBot struct {
 	Channel     string
 	conn        net.Conn
-	Credentials *oAuthCred
+	Credentials *types.OAuthCred
 	MsgRate     time.Duration
 	Name        string
 	Port        string
@@ -48,6 +45,7 @@ type BasicBot struct {
 	Server      string
 	startTime   time.Time
 	ServerPort  string
+	ChatConfig  types.ChatConfig
 }
 
 func (bb *BasicBot) connect() {
@@ -76,7 +74,7 @@ func (bb *BasicBot) readCredentials() error {
 		return err
 	}
 
-	bb.Credentials = &oAuthCred{}
+	bb.Credentials = &types.OAuthCred{}
 
 	dec := json.NewDecoder(strings.NewReader(string(credFile)))
 
@@ -101,10 +99,12 @@ func (bb *BasicBot) say(msg string) error {
 		return errors.New("BasicBot.say: msg was empty")
 	}
 
-	log.Printf("DEBUG PRIVMSG #%s %s\r\n", bb.Channel, msg)
+	log.Printf("DEBUG PRIVMSG #%s :%s\r\n", bb.Channel, msg)
 
 	_, err := bb.conn.Write([]byte(fmt.Sprintf("PRIVMSG #%s :%s\r\n", bb.Channel, msg)))
 	if err != nil {
+		log.Print("Failed to write to output connection")
+		log.Print(err)
 		return err
 	}
 	return nil
@@ -142,9 +142,9 @@ func (bb *BasicBot) handleChat() error {
 
 					cmdMatches := cmdRegex.FindStringSubmatch(msg)
 
-					log.Printf("%s sent a command %s\n", userName, cmdMatches)
-
 					if cmdMatches != nil {
+						log.Printf("%s sent a command %s\n", userName, cmdMatches)
+
 						cmd := cmdMatches[1]
 
 						switch cmd {
@@ -153,7 +153,7 @@ func (bb *BasicBot) handleChat() error {
 							bb.say("Hello!")
 						case "project":
 							log.Printf("%s sent the project command!\n", userName)
-							bb.say("Currently working on a twitch chatbot using GOLANG.")
+							bb.say(bb.ChatConfig.ProjectDescription)
 						}
 					}
 				}
@@ -164,7 +164,13 @@ func (bb *BasicBot) handleChat() error {
 }
 
 func (bb *BasicBot) startWebServer() {
-	web.StartWebServer(bb.ServerPort)
+
+	webserver := web.ServerConfig{
+		BotConfig: &(bb.ChatConfig),
+		Port: bb.ServerPort,
+	}
+
+	webserver.StartWebServer()
 }
 
 // Start initializes and runs the twitchbot with the provided configuration

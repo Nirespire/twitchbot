@@ -10,6 +10,11 @@ Following the tutorial here: https://dev.to/foresthoffman/building-a-twitchtv-ch
 2. Copy OAuth token into `oauth.json.template` and rename to `oauth.json`
 3. Set appropriate configs in `main.go`
 ```go
+
+chatConfig := types.ChatConfig{
+	ProjectDescription: "Currently working on a twitch chatbot using GOLANG.",
+}
+
 myBot := bot.BasicBot{
 		Channel:     "your_channel_name(lowercase)",
 		MsgRate:     time.Duration(20/30) * time.Millisecond,
@@ -18,6 +23,7 @@ myBot := bot.BasicBot{
 		PrivatePath: "oauth.json",
 		Server:      "irc.chat.twitch.tv",
 		ServerPort:  ":8080",
+		ChatConfig:  chatConfig,
 	}
 ```
 4. `go install`
