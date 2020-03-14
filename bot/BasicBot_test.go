@@ -2,39 +2,30 @@ package bot
 
 import (
 	"testing"
-	"net"
+	"github.com/Nirespire/twitchbot/types"
 )
 
-// 1
-type mockNet struct {
-	net.Conn
-}
 
-// 2
-func (m *mockNet) Dial(protocol string, address string) (net.Conn, error) {
-	// 3
-	return nil, nil
-}
+func Test_HandlePrivateMessage_nonCommandInput(t *testing.T) {
 
+	sayCalled := false
 
-func TestConnect(t *testing.T) {
-	// 4
-	client := &mockNet{}
-
-	myBot := bot.BasicBot {
-		Channel:     "nirespire",
-		MsgRate:     time.Duration(20/30) * time.Millisecond,
-		Name:        "NirespireBot",
-		Port:        "6667",
-		PrivatePath: "oauth.json",
-		Server:      "irc.chat.twitch.tv",
-		ServerPort:  ":8080",
+	mockSay := func(message string) error {
+		sayCalled = true
+		return nil
 	}
-	
-	// 5
-	myBot.connect()
 
-	if(myBot.conn == nil) {
-		t.Error("Test failed")
+	mockChatConfig := types.ChatConfig{
+		ProjectDescription: "Initial Project Description",
+	}
+
+	handlePrivateMessage("Some message", "username1", mockSay, mockChatConfig)
+
+	if(sayCalled) {
+		t.Fail()
+	}
+
+	if(mockChatConfig.ProjectDescription != "Initial Project Description") {
+		t.Fail()
 	}
 }

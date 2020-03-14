@@ -21,13 +21,14 @@ import (
 var msgRegex *regexp.Regexp = regexp.MustCompile(`^:(\w+)!\w+@\w+\.tmi\.twitch\.tv (PRIVMSG) #\w+(?: :(.*))?$`)
 var cmdRegex *regexp.Regexp = regexp.MustCompile(`^!(\w+)\s?(\w+)?`)
 
-type twitchBot interface {
+type TwitchBot interface {
 	connect()
 	disconnect()
 	handleChat()
 	joinChannel()
 	readCredentials() error
-	say(msg string) error
+	say(string) error
+	getChatConfig() types.ChatConfig
 	Start()
 	startWebServer() error
 }
@@ -94,7 +95,7 @@ func (bb *BasicBot) joinChannel() {
 	log.Printf("Joined #%s as @%s!\n", bb.Channel, bb.Name)
 }
 
-func (bb *BasicBot) say(msg string) error {
+func (bb *BasicBot) Say(msg string) error {
 	if msg == "" {
 		return errors.New("BasicBot.say: msg was empty")
 	}
@@ -137,30 +138,39 @@ func (bb *BasicBot) handleChat() error {
 
 				switch msgType {
 				case "PRIVMSG":
-					msg := matches[3]
-					log.Printf("%s: %s\n", userName, msg)
-
-					cmdMatches := cmdRegex.FindStringSubmatch(msg)
-
-					if cmdMatches != nil {
-						log.Printf("%s sent a command %s\n", userName, cmdMatches)
-
-						cmd := cmdMatches[1]
-
-						switch cmd {
-						case "hello":
-							log.Printf("%s said hello!", userName)
-							bb.say("Hello!")
-						case "project":
-							log.Printf("%s sent the project command!\n", userName)
-							bb.say(bb.ChatConfig.ProjectDescription)
-						}
-					}
+					handlePrivateMessage(matches[3], userName, bb.Say, bb.ChatConfig)
 				}
 			}
 		}
 		time.Sleep(bb.MsgRate)
 	}
+}
+
+
+func handlePrivateMessage(message string, userName string, say func(message string) error, chatConfig types.ChatConfig) {
+	
+	log.Printf("%s: %s\n", userName, message)
+
+	cmdMatches := cmdRegex.FindStringSubmatch(message)
+
+	if cmdMatches != nil {
+		log.Printf("%s sent a command %s\n", userName, cmdMatches)
+
+		cmd := cmdMatches[1]
+
+		switch cmd {
+		case "hello":
+			log.Printf("%s said hello!", userName)
+			say("Hello!")
+		case "project":
+			log.Printf("%s sent the project command!\n", userName)
+			say(chatConfig.ProjectDescription)
+		}
+	}
+}
+
+func (bb *BasicBot) getChatConfig() types.ChatConfig {
+	return bb.ChatConfig
 }
 
 func (bb *BasicBot) startWebServer() {
