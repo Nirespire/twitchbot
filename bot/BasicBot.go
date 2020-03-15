@@ -14,27 +14,27 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Nirespire/twitchbot/web"
 	"github.com/Nirespire/twitchbot/types"
+	"github.com/Nirespire/twitchbot/web"
 )
 
 var msgRegex *regexp.Regexp = regexp.MustCompile(`^:(\w+)!\w+@\w+\.tmi\.twitch\.tv (PRIVMSG) #\w+(?: :(.*))?$`)
 var cmdRegex *regexp.Regexp = regexp.MustCompile(`^!(\w+)\s?(\w+)?`)
 
-type twitchBot interface {
+type ChatBot interface {
 	connect()
 	disconnect()
 	handleChat()
 	joinChannel()
 	readCredentials() error
-	say(msg string) error
+	say(string) error
+	getChatConfig() types.ChatConfig
 	Start()
 	startWebServer() error
 }
 
-// BasicBot defines the basic twitchbot details to connect and join a channel
-// as well as behavior configuration
-type BasicBot struct {
+// TwitchBot defines the basic twitchbot details to connect and join a channel
+type TwitchBot struct {
 	Channel     string
 	conn        net.Conn
 	Credentials *types.OAuthCred
@@ -48,7 +48,7 @@ type BasicBot struct {
 	ChatConfig  types.ChatConfig
 }
 
-func (bb *BasicBot) connect() {
+func (bb *TwitchBot) connect() {
 	var err error
 	log.Printf("connecting to %s...\n", bb.Server)
 
@@ -62,13 +62,13 @@ func (bb *BasicBot) connect() {
 	bb.startTime = time.Now()
 }
 
-func (bb *BasicBot) disconnect() {
+func (bb *TwitchBot) disconnect() {
 	bb.conn.Close()
 	upTime := time.Now().Sub(bb.startTime).Seconds()
 	log.Printf("Closed connected from %s | Live for: %fs\n", bb.Server, upTime)
 }
 
-func (bb *BasicBot) readCredentials() error {
+func (bb *TwitchBot) readCredentials() error {
 	credFile, err := ioutil.ReadFile(bb.PrivatePath)
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func (bb *BasicBot) readCredentials() error {
 	return nil
 }
 
-func (bb *BasicBot) joinChannel() {
+func (bb *TwitchBot) joinChannel() {
 	log.Printf("Joining #%s...\n", bb.Channel)
 	bb.conn.Write([]byte("PASS " + bb.Credentials.Password + "\r\n"))
 	bb.conn.Write([]byte("NICK " + bb.Name + "\r\n"))
@@ -94,9 +94,9 @@ func (bb *BasicBot) joinChannel() {
 	log.Printf("Joined #%s as @%s!\n", bb.Channel, bb.Name)
 }
 
-func (bb *BasicBot) say(msg string) error {
+func (bb *TwitchBot) Say(msg string) error {
 	if msg == "" {
-		return errors.New("BasicBot.say: msg was empty")
+		return errors.New("TwitchBot.say: msg was empty")
 	}
 
 	log.Printf("DEBUG PRIVMSG #%s :%s\r\n", bb.Channel, msg)
@@ -110,7 +110,7 @@ func (bb *BasicBot) say(msg string) error {
 	return nil
 }
 
-func (bb *BasicBot) handleChat() error {
+func (bb *TwitchBot) handleChat() error {
 	log.Printf("Watching #%s...\n", bb.Channel)
 
 	tp := textproto.NewReader(bufio.NewReader(bb.conn))
@@ -137,25 +137,7 @@ func (bb *BasicBot) handleChat() error {
 
 				switch msgType {
 				case "PRIVMSG":
-					msg := matches[3]
-					log.Printf("%s: %s\n", userName, msg)
-
-					cmdMatches := cmdRegex.FindStringSubmatch(msg)
-
-					if cmdMatches != nil {
-						log.Printf("%s sent a command %s\n", userName, cmdMatches)
-
-						cmd := cmdMatches[1]
-
-						switch cmd {
-						case "hello":
-							log.Printf("%s said hello!", userName)
-							bb.say("Hello!")
-						case "project":
-							log.Printf("%s sent the project command!\n", userName)
-							bb.say(bb.ChatConfig.ProjectDescription)
-						}
-					}
+					handlePrivateMessage(matches[3], userName, bb.Say, bb.ChatConfig)
 				}
 			}
 		}
@@ -163,18 +145,44 @@ func (bb *BasicBot) handleChat() error {
 	}
 }
 
-func (bb *BasicBot) startWebServer() {
+func handlePrivateMessage(message string, userName string, say func(message string) error, chatConfig types.ChatConfig) {
+
+	log.Printf("%s: %s\n", userName, message)
+
+	cmdMatches := cmdRegex.FindStringSubmatch(message)
+
+	if cmdMatches != nil {
+		log.Printf("%s sent a command %s\n", userName, cmdMatches)
+
+		cmd := cmdMatches[1]
+
+		switch cmd {
+		case "hello":
+			log.Printf("%s said hello!", userName)
+			say("Hello!")
+		case "project":
+			log.Printf("%s sent the project command!\n", userName)
+			say(chatConfig.ProjectDescription)
+		}
+	}
+}
+
+func (bb *TwitchBot) getChatConfig() types.ChatConfig {
+	return bb.ChatConfig
+}
+
+func (bb *TwitchBot) startWebServer() {
 
 	webserver := web.ServerConfig{
 		BotConfig: &(bb.ChatConfig),
-		Port: bb.ServerPort,
+		Port:      bb.ServerPort,
 	}
 
 	webserver.StartWebServer()
 }
 
 // Start initializes and runs the twitchbot with the provided configuration
-func (bb *BasicBot) Start() {
+func (bb *TwitchBot) Start() {
 	err := bb.readCredentials()
 	if err != nil {
 		log.Println(err)
