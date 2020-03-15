@@ -15,7 +15,7 @@ chatConfig := types.ChatConfig{
 	ProjectDescription: "Currently working on a twitch chatbot using GOLANG.",
 }
 
-myBot := bot.BasicBot{
+myBot := bot.TwitchBot{
 		Channel:     "your_channel_name(lowercase)",
 		MsgRate:     time.Duration(20/30) * time.Millisecond,
 		Name:        "SomeBotName",

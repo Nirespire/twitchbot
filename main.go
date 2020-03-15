@@ -13,7 +13,7 @@ func main() {
 		ProjectDescription: "Currently working on a twitch chatbot using GOLANG.",
 	}
 
-	myBot := bot.BasicBot{
+	myBot := bot.TwitchBot{
 		Channel:     "nirespire",
 		MsgRate:     time.Duration(20/30) * time.Millisecond,
 		Name:        "NirespireBot",
