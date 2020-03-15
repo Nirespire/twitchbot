@@ -69,8 +69,6 @@ func Test_HandlePrivateMessage_helloCommandInput(t *testing.T) {
 	}
 }
 
-// Send !project command
-// Assert say() is called with chatConfig.ProjectDescription
 func Test_HandlePrivateMessage_projectCommandInput(t *testing.T) {
 
 	sayCalled := false

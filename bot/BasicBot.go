@@ -15,10 +15,12 @@ import (
 	"time"
 
 	"github.com/Nirespire/twitchbot/types"
+	"github.com/Nirespire/twitchbot/util"
 	"github.com/Nirespire/twitchbot/web"
 )
 
 var msgRegex *regexp.Regexp = regexp.MustCompile(`^:(\w+)!\w+@\w+\.tmi\.twitch\.tv (PRIVMSG) #\w+(?: :(.*))?$`)
+var userStateRegex *regexp.Regexp = regexp.MustCompile(`^:(\w+)!\w+@\w+\.tmi\.twitch\.tv (USERSTATE) #\w+(?: :(.*))?$`)
 var cmdRegex *regexp.Regexp = regexp.MustCompile(`^!(\w+)\s?(\w+)?`)
 
 type ChatBot interface {
@@ -138,10 +140,22 @@ func (bb *TwitchBot) handleChat() error {
 				switch msgType {
 				case "PRIVMSG":
 					handlePrivateMessage(matches[3], userName, bb.Say, bb.ChatConfig)
+				case "USERSTATE":
+					handleUserState(line, bb.Say)
 				}
 			}
 		}
 		time.Sleep(bb.MsgRate)
+	}
+}
+
+func handleUserState(line string, say func(message string) error) {
+	tags := util.ParseUserState(line)
+
+	displayName := tags["display-name"]
+
+	if(displayName != "") {
+		say("Hello and welcome to the channel " + displayName)
 	}
 }
 
