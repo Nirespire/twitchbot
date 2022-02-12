@@ -43,9 +43,9 @@ type TwitchBot struct {
 	Port        string
 	PrivatePath string
 	Server      string
-	startTime   time.Time
 	ServerPort  string
 	ChatConfig  types.ChatConfig
+	BotStats types.BotStats
 }
 
 func (bb *TwitchBot) connect() {
@@ -59,15 +59,18 @@ func (bb *TwitchBot) connect() {
 	}
 
 	log.Printf("connected to %s", bb.Server)
-	bb.startTime = time.Now()
+	bb.BotStats.StartTime = time.Now()
 }
 
 func (bb *TwitchBot) disconnect() {
 	bb.conn.Close()
-	upTime := time.Now().Sub(bb.startTime).Seconds()
-	log.Printf("Closed connected from %s | Live for: %fs\n", bb.Server, upTime)
+	log.Printf("Closed connected from %s | Live for: %fs\n", bb.Server, bb.getUptime())
 }
 
+func (bb *TwitchBot) getUptime() float64 {
+	return time.Since(bb.BotStats.StartTime).Seconds()
+}
+ 
 func (bb *TwitchBot) readCredentials() error {
 	credFile, err := ioutil.ReadFile(bb.PrivatePath)
 	if err != nil {
@@ -175,6 +178,7 @@ func (bb *TwitchBot) startWebServer() {
 
 	webserver := web.ServerConfig{
 		BotConfig: &(bb.ChatConfig),
+		BotStats: &(bb.BotStats),
 		Port:      bb.ServerPort,
 	}
 
@@ -186,16 +190,18 @@ func (bb *TwitchBot) Start() {
 	err := bb.readCredentials()
 	if err != nil {
 		log.Println(err)
-		log.Println("Aborting...")
+		log.Println("Failed to read Bot credentals. Aborting...")
 		return
 	}
 
+	bb.startWebServer()
+
 	for {
-		bb.startWebServer()
 		bb.connect()
 		bb.joinChannel()
 		err = bb.handleChat()
 		if err != nil {
+			log.Println("Failed to handleChat, sleeping for 1s")
 			time.Sleep(1000 * time.Millisecond)
 			log.Println(err)
 			log.Println("Starting bot again...")

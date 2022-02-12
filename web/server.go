@@ -18,9 +18,9 @@ type webServer interface {
 	sayHello()
 }
 
-// ServerConfig holds the server config values
 type ServerConfig struct {
 	BotConfig *types.ChatConfig
+	BotStats *types.BotStats
 	Port string
 }
 
@@ -38,7 +38,18 @@ func (config *ServerConfig) sayHello(w http.ResponseWriter, r *http.Request) {
 
 // TODO Add logging
 func (config *ServerConfig) handleConfig(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
+
+	if r.Method == "GET" {
+		jsonConfig, err := json.Marshal(config)
+
+		if err != nil {
+			http.Error(w, "Error parsing Bot Configuration",
+					http.StatusInternalServerError)
+		}
+	
+		w.Write([]byte (jsonConfig))
+
+	} else if r.Method == "POST" {
 
 		var req configRequest
 
@@ -57,7 +68,7 @@ func (config *ServerConfig) handleConfig(w http.ResponseWriter, r *http.Request)
 		}
 
 		switch req.Name {
-		case "project":
+		case "ProjectDescription":
 			config.BotConfig.ProjectDescription = req.Value
 
 			log.Printf("Changed project message to %s", config.BotConfig.ProjectDescription)
@@ -68,7 +79,14 @@ func (config *ServerConfig) handleConfig(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		w.Write([]byte(req.Value))
+		jsonConfig, err := json.Marshal(config)
+
+		if err != nil {
+			http.Error(w, "Error parsing Bot Configuration",
+					http.StatusInternalServerError)
+		}
+	
+		w.Write([]byte (jsonConfig))
 
 	} else {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
